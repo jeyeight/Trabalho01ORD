@@ -1,0 +1,13 @@
+Tamanho variável
+Cabeçalho de 4 bytes(int) no inicio do arquivo
+Cabeçalho de 2 bytes(short) no inicio do registro com o tamanho em bytes do registro
+Campos separados por "|"
+ID -> Chave primária é o primeiro registro
+Arquivo de operações passado como parâmetro
+    Exemplo -> main.exe -e op-teste.txt 
+Se o arquivo de operações não existir, o programa DEVE apresentaer uma mensagem de erro
+Os resultados das operações devem ser apresentados no terminal
+A LED deve ser mantida no arquivo
+Consultar LED ao inserir arquivos novos
+Novos espaços resultantes deverão ser reinseridos na LED após inserção. Caso não exista um espaço apropriado, inserir no final.
+A LED deve ser impressa via linha de comando e deve ser verificada a existência do arquivo de dados com a LED para imprimir
