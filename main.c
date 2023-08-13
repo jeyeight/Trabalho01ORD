@@ -2,25 +2,14 @@
 #include <string.h>
 #include <stdlib.h>
 
-executaOperacoes(FILE *arq, int argv[2]);
+void ExecutaOperacoes(char *argv[]);
 
-int main(int argc, char *argv[]) {
-
+int main(int argc, char *argv[]){
     if (argc == 3 && strcmp(argv[1], "-e") == 0) {
-
         printf("Modo de execucao de operacoes ativado ... nome do arquivo = %s\n", argv[2]);
-        FILE *arq = fopen(argv[2], "rb+"); 
-
-        if(arq == NULL) {
-            printf("Arquivo de operações não existe.");
-            fclose(arq);
-            exit(1);
-        }
-        //programa[0] -e[1] nomedoarquivo de operacoes[2]
-        executaOperacoes(arq, argv[2]);
-        // chamada da funcao que executa o arquivo de operacoes
-        // o nome do arquivo de operacoes estara armazenado na variavel argv[2]
-        // executa_operacoes(argv[2])
+        
+        ExecutaOperacoes(argv); 
+        
 
     } else if (argc == 2 && strcmp(argv[1], "-p") == 0) {
 
@@ -39,4 +28,41 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
+}
+
+void ExecutaOperacoes(char *argv[]){
+    FILE *arq = fopen(argv[2], "rb+");
+    char operacao;
+    short idDoRegistro;
+    char BUFFER[1000];
+
+    if(arq == NULL){
+        printf("Arquivo inexistente");
+        exit(1);
+    }
+
+    while (!feof(arq))
+    {
+        fread(BUFFER, sizeof(char), 1000, arq);
+        printf("%s", BUFFER);
+    }
+
+    printf("%s",BUFFER);
+    
+
+    // while(!feof(arq)){
+    //     BUFFER[0] = '\0';
+    //     operacao = fgetc(arq);
+    //     fseek(arq, 1, SEEK_CUR);
+    //     fread(BUFFER, sizeof(short), 1, arq);
+    //     idDoRegistro = atoi(BUFFER);
+    //     printf("%c", operacao);
+    //     printf("%d\n", idDoRegistro);
+
+    //     if(!feof(arq)){
+    //         fseek(arq, 2, SEEK_CUR);
+    //     }
+    // }
+
+    fclose(arq);
 }
