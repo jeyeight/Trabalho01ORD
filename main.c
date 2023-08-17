@@ -40,29 +40,30 @@ void ExecutaOperacoes(char *argv[]){
         printf("Arquivo inexistente");
         exit(1);
     }
+    
+    while(!feof(arq)){
+        BUFFER[0] = '\0';
+        operacao = fgetc(arq);
+        fseek(arq, 1, SEEK_CUR);
+        fread(BUFFER, sizeof(BUFFER), 1, arq);
+        idDoRegistro = atoi(BUFFER);
+        printf("%c", operacao);
+        printf("%d\n", idDoRegistro);
 
-    while (!feof(arq))
-    {
-        fread(BUFFER, sizeof(char), 1000, arq);
-        printf("%s", BUFFER);
+        // if(!feof(arq)){
+        //     fseek(arq, 2, SEEK_CUR);
+        // }
     }
 
-    printf("%s",BUFFER);
-    
-
-    // while(!feof(arq)){
-    //     BUFFER[0] = '\0';
-    //     operacao = fgetc(arq);
-    //     fseek(arq, 1, SEEK_CUR);
-    //     fread(BUFFER, sizeof(short), 1, arq);
-    //     idDoRegistro = atoi(BUFFER);
-    //     printf("%c", operacao);
-    //     printf("%d\n", idDoRegistro);
-
-    //     if(!feof(arq)){
-    //         fseek(arq, 2, SEEK_CUR);
-    //     }
-    // }
-
     fclose(arq);
+}
+
+void ImprimeResultado(char operacao, int id, int bytes, int offset){
+    if(strcmp(operacao,"r") == 1){
+            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (0xda)", id, bytes, offset);
+    }else if(strcmp(operacao,"i") == 1){
+            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (0xda)", id, bytes, offset);
+    }else{
+            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (0xda)", id, bytes, offset);
+    }
 }
