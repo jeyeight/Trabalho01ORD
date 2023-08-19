@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/Users/jvplu/OneDrive/Área de Trabalho/ORD/Trabalho01ORD",
-      "program": "c:/Users/jvplu/OneDrive/Área de Trabalho/ORD/Trabalho01ORD/build/Debug/outDebug",
+      "cwd": "d:/Meus Documentos/Documents/GitHub/Trabalho01ORD",
+      "program": "d:/Meus Documentos/Documents/GitHub/Trabalho01ORD/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
