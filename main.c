@@ -1,17 +1,19 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#define MAX_LINE_LENGTH 1000
 
-void ExecutaOperacoes(char *argv[]);
-void ProcessLine(char operacao, short id, char *data);
-void busca_registro(short id);
+#define TRUE 1
+#define FALSE 0
+
+void executa_operacoes(char *argv[]); //Função responsável por ler o arquivo de operações e chamar a função correspondente
+void print_linha(char operacao, short id, char *data);
+int busca_registro(short id, int print); //Função responsável pela operação de busca de registro 
+void impime_resultado(char operacao, int id, int bytes, int offset); //Função de impressão do resultado das operações
 
 int main(int argc, char *argv[]){
     if (argc == 3 && strcmp(argv[1], "-e") == 0) {
         printf("Modo de execucao de operacoes ativado ... nome do arquivo = %s\n", argv[2]);
-        ExecutaOperacoes(argv); 
-        
+        executa_operacoes(argv); 
 
     } else if (argc == 2 && strcmp(argv[1], "-p") == 0) {
 
@@ -30,13 +32,18 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
-void printLinha(char operacao, short id, char *data) {
+//debug functions
+void print_linha(char operacao, short id, char *data) {
     printf("Operacao: %c, Id: %hd, Data: %s\n", operacao, id, data);
 }
 
+void tell(FILE* arquivo){
+        printf("%ld",ftell(arquivo));
+}
+//
 
 
-void ExecutaOperacoes(char *argv[]){
+void executa_operacoes(char *argv[]){
     FILE *arq_operacoes = fopen(argv[2], "rb+");
     short id;
     char operacao;
@@ -52,28 +59,25 @@ void ExecutaOperacoes(char *argv[]){
     while (fgets(BUFFER, sizeof(BUFFER), arq_operacoes) != NULL) {
         data[0] = '\0';
         sscanf(BUFFER, " %c %hd|%[^\n]", &operacao, &id, data);
-        printLinha(operacao, id, data);
+        print_linha(operacao, id, data);
 
         switch(operacao){
             case 'r': 
-                //remove_registro();
+                //remove_registro(id);
                 break;
             case 'i':
                 //insere_registro();
                 break;
             case 'b':
-                busca_registro(id);
+                busca_registro(id,TRUE);
                 break;
-        }
-        
-        exit(1);
-          
+        }          
     }
 
     fclose(arq_operacoes);
 }
 
-void busca_registro(short id){
+int busca_registro(short id, int print){
     FILE *arq_dados = fopen("outros/dados.dat", "rb+");
     short tamanho_reg;
     char id_verificando[5];
@@ -86,20 +90,19 @@ void busca_registro(short id){
     }
 
     fseek(arq_dados, 4, SEEK_SET);
-
+    tell(arq_dados);
+    exit(TRUE);
     do{
         auxiliar = 0;
         fread(&tamanho_reg, sizeof(tamanho_reg), 1, arq_dados);
-        printf("%hd\n", tamanho_reg);
+        // printf("%hd\n", tamanho_reg);
 
         char caracter = fgetc(arq_dados);
 
         while(caracter != EOF && caracter != '|'){
             id_verificando[auxiliar] = caracter;
             auxiliar++;
-
             caracter = fgetc(arq_dados);
-
         }
 
         id_verificando[auxiliar] = '\0';
@@ -109,39 +112,44 @@ void busca_registro(short id){
         // printf("AUXILIAR - %hd\n", auxiliar);
         // printf("%hd\n", tamanho_reg - (auxiliar + 1)); 
         if(id == (short)atoi(id_verificando)){
-            //Imprime_Resultado('r',);
-            achou = 1;
-            printf("ID %hd ENCONTRADO", id);
+            achou = TRUE;
+            printf("ACHO");
+            printf("%hd",tamanho_reg);
+            if(print == 1){
+            // impime_resultado('r',id,41,99);
+            }
         }else{
             fseek(arq_dados, tamanho_reg - (auxiliar + 1), SEEK_CUR);
         }
-    } while(achou == 0);
-
+    } while(achou == FALSE && !feof(arq_dados));
 
     fclose(arq_dados);
-    
 }
 
-//     if(arq == NULL){
-//         printf("Arquivo inexistente");
-//         exit(1);
-//     }
-//     while ((character = fgetc(arq)) != EOF && character != '\n') {
-//             BUFFER[index] = character;
-//             index++;
-//     }
-//     printf("A linha lida do arquivo Ã©: %s\n", BUFFER);
-//     }
+void remove_registro(short id){
+    FILE *arq_dados = fopen("outros/dados.dat", "rb+");
+    int byte_offset = busca_registro(id, FALSE);
+    short tamanho_reg; 
+    fseek(arq_dados,byte_offset,SEEK_SET);
+    fread(&tamanho_reg,sizeof(tamanho_reg),1,arq_dados);
+    fputc('*', arq_dados);
+    fclose(arq_dados);
+    //insere_led(byte_offset,tamanho_reg)
+}
 
-//     fclose(arq);
-// }
+void impime_resultado(char operacao, int id, int bytes, int offset){
+    switch (operacao){
+        case 'r':
+            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset,&id);
+            break;
+        case 'b':
+            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset,&id);
+        case 'i':
+            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset, &id);
+            break;
+        default:
+            printf("Operação não suportada");
+            break;
+    }
+}
 
-// void ImprimeResultado(char operacao, int id, int bytes, int offset){
-//     if(strcmp(operacao,"r") == 1){
-//             printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset,&id);
-//     }else if(strcmp(operacao,"i") == 1){
-//             printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset,&id);
-//     }else{
-//             printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset, &id);
-//     }
-// }
