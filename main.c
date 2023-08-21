@@ -8,7 +8,7 @@
 void executa_operacoes(char *argv[]); //Função responsável por ler o arquivo de operações e chamar a função correspondente
 void print_linha(char operacao, short id, char *data);
 int busca_registro(short id, int print); //Função responsável pela operação de busca de registro 
-void impime_resultado(char operacao, int id, int bytes, int offset); //Função de impressão do resultado das operações
+void imprime_resultado(char operacao, int id, short tamanho, int offset, char conteudo); //Função de impressão do resultado das operações
 
 int main(int argc, char *argv[]){
     if (argc == 3 && strcmp(argv[1], "-e") == 0) {
@@ -37,8 +37,9 @@ void print_linha(char operacao, short id, char *data) {
     printf("Operacao: %c, Id: %hd, Data: %s\n", operacao, id, data);
 }
 
-void tell(FILE* arquivo){
-        printf("%ld",ftell(arquivo));
+void dd(char caracter){
+    printf("%c",caracter);
+    exit(1);
 }
 //
 
@@ -82,44 +83,46 @@ int busca_registro(short id, int print){
     short tamanho_reg;
     char id_verificando[5];
     short auxiliar;
-    int achou = 0;
+    int achou = FALSE;
+    char caracter;
+    short byte_offset;
 
     if (arq_dados == NULL) {
         printf("Erro ao abrir o arquivo para busca");
         exit(1);
     }
-
     fseek(arq_dados, 4, SEEK_SET);
-    tell(arq_dados);
-    exit(TRUE);
     do{
+        int count = 0;
         auxiliar = 0;
         fread(&tamanho_reg, sizeof(tamanho_reg), 1, arq_dados);
-        // printf("%hd\n", tamanho_reg);
+        byte_offset += tamanho_reg;
+        caracter = fgetc(arq_dados);
+        char conteudo[2000];
 
-        char caracter = fgetc(arq_dados);
-
-        while(caracter != EOF && caracter != '|'){
+        while(caracter != '|' && caracter != EOF ){
             id_verificando[auxiliar] = caracter;
             auxiliar++;
             caracter = fgetc(arq_dados);
         }
-
         id_verificando[auxiliar] = '\0';
-
-        // printf("ID - VERIFICANDO %s\n", id_verificando);
-        // printf("TAMANHO - REG %hd\n", tamanho_reg);
-        // printf("AUXILIAR - %hd\n", auxiliar);
-        // printf("%hd\n", tamanho_reg - (auxiliar + 1)); 
+        
         if(id == (short)atoi(id_verificando)){
-            achou = TRUE;
-            printf("ACHO");
-            printf("%hd",tamanho_reg);
+            achou = TRUE;         
+            printf("TAMANHO:%hd\n",auxiliar); 
+            printf("%ld\n\n",ftell(arq_dados));
+            fseek(arq_dados,-1,SEEK_CUR);
+            fseek(arq_dados,-auxiliar,SEEK_CUR);
+            fread(conteudo, sizeof(char),tamanho_reg,arq_dados);
+            printf("%s \n\n",conteudo);
+            printf("%ld",ftell(arq_dados));
+            exit(1);
             if(print == 1){
-            // impime_resultado('r',id,41,99);
+                // imprime_resultado('b',id,tamanho_reg,ftell(arq_dados),conteudo);
             }
         }else{
-            fseek(arq_dados, tamanho_reg - (auxiliar + 1), SEEK_CUR);
+            fseek(arq_dados, tamanho_reg - auxiliar, SEEK_CUR);
+            fseek(arq_dados, -1, SEEK_CUR);
         }
     } while(achou == FALSE && !feof(arq_dados));
 
@@ -137,15 +140,15 @@ void remove_registro(short id){
     //insere_led(byte_offset,tamanho_reg)
 }
 
-void impime_resultado(char operacao, int id, int bytes, int offset){
+void imprime_resultado(char operacao, int id, short tamanho, int offset, char conteudo){
     switch (operacao){
         case 'r':
-            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset,&id);
+            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, tamanho, offset,&id);
             break;
         case 'b':
-            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset,&id);
+            printf("Busca pelo registro de chave %d \n %s (%hd bytes)\nLocal: offset = %d bytes (%p)\n",id,conteudo,tamanho,offset);
         case 'i':
-            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset, &id);
+            printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, tamanho, offset, &id);
             break;
         default:
             printf("Operação não suportada");
