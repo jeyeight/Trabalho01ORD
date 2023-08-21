@@ -153,3 +153,38 @@ void impime_resultado(char operacao, int id, int bytes, int offset){
     }
 }
 
+struct ListaLED{
+    int LED[100];
+    int tamanho;
+};
+
+void inicia_LED(struct ListaLED* lista){
+    lista->tamanho = 0;
+}
+
+void insere_LED(struct ListaLED* lista, int novo_registro){
+    if (lista->tamanho < 100){
+        if(lista->tamanho == 0){
+            lista->LED[0] = novo_registro;
+            lista->tamanho++;
+        }
+        else{
+            int i = 0;
+            while(lista->LED[i] > novo_registro){
+                i++;
+            }
+            int transloca_LED = lista->tamanho;
+            while(transloca_LED >= i){
+                lista->LED[transloca_LED + 1] = lista->LED[transloca_LED];
+                transloca_LED--;
+            }
+            lista->LED[i] = novo_registro;
+            lista->tamanho++;
+        }
+    }
+    else{
+        printf("\nLista está CHEIA. Não foi possível inserir esse elemento na LED");
+    }
+
+}
+
