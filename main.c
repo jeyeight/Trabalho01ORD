@@ -201,6 +201,7 @@ void insere_led(short tamanho, short offset, FILE* fd){
             rewind(fd);
             int colocar = (int)offset;
             fwrite(&offset,sizeof(int),1,fd);
+            int cuzin;
         }
     }
 }
