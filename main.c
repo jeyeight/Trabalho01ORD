@@ -9,6 +9,7 @@ void executa_operacoes(char *argv[]); //Função responsável por ler o arquivo 
 int busca_registro(short id, int print); //Função responsável pela operação de busca de registro 
 void imprime_resultado(char operacao, short id, short tamanho, int offset, char conteudo[], int tamanho_char); //Função de impressão do resultado das operações
 void remove_registro(short id);
+void insere_led(short tamanho, int offset, FILE* fd);
 
 int main(int argc, char *argv[]){
     if (argc == 3 && strcmp(argv[1], "-e") == 0) {
@@ -50,7 +51,7 @@ void executa_operacoes(char *argv[]){
 
         switch(operacao){
             case 'r': 
-                // remove_registro(id);
+                remove_registro(id);
                 break;
             case 'i':
                 //insere_registro();
@@ -78,7 +79,7 @@ int busca_registro(short id, int print){
     int byte_offset;
 
     // printCabecalho(arq_dados);
-    exit(1);
+
 
     if (arq_dados == NULL) {
         printf("Erro ao abrir o arquivo para busca");
@@ -103,7 +104,7 @@ int busca_registro(short id, int print){
 
         if(id == (short)atoi(id_verificando)){
             achou = TRUE;
-            printf("ACHOU AQUI: %ld",ftell(arq_dados));         
+            //printf("ACHOU AQUI: %ld",ftell(arq_dados));         
             fseek(arq_dados,-1,SEEK_CUR);
             fseek(arq_dados, -auxiliar ,SEEK_CUR);
             int offset = ftell(arq_dados) - 2; // o + 1 acho que n precisa, pq ele começa no 0
@@ -139,7 +140,6 @@ int busca_registro(short id, int print){
 
 void remove_registro(short id){
     FILE *arq_dados = fopen("outros/dados.dat", "rb+");
-
     if (arq_dados == NULL) {
         printf("Erro ao abrir o arquivo para a operação de remoção.\n");
         return;
@@ -147,6 +147,7 @@ void remove_registro(short id){
 
     char conteudo[2000];
     char caracter;
+    
     int byte_offset = busca_registro(id, FALSE);
     short tamano_registro;
     char tamanho_reg_char[20];
@@ -162,8 +163,13 @@ void remove_registro(short id){
     fseek(arq_dados,ftell(arq_dados),SEEK_SET);
     fputc('*', arq_dados);
     imprime_resultado('r', id, tamano_registro, byte_offset, conteudo, 2000);
+
+    
+
+    insere_led(byte_offset,tamano_registro, arq_dados);
+
     fclose(arq_dados);
-    //insere_led(byte_offset,tamanho_reg)
+    
 }
 
 void imprime_resultado(char operacao, short id, short tamanho, int offset, char conteudo[], int tamanho_char){
@@ -184,10 +190,14 @@ void imprime_resultado(char operacao, short id, short tamanho, int offset, char 
     }
 }
 
-void insere_led(short tamanho, short offset, FILE* fd){
+void insere_led(short tamanho, int offset, FILE* fd){ // PROBLEMA, ESSE OFFSET ESTÁ VINDO COMO SHORT, porém é um int antes
     rewind(fd);
+    short offset_em_short = (short) offset;
     int cabeca;
+    short old_offset;
     short tamanhoDoRegistro;
+    int mudou = 0;
+    short posicao_anterior;
     fread(&cabeca,sizeof(int),1,fd);
     if(cabeca == -1){
         rewind(fd);
@@ -201,8 +211,45 @@ void insere_led(short tamanho, short offset, FILE* fd){
             rewind(fd);
             int colocar = (int)offset;
             fwrite(&offset,sizeof(int),1,fd);
-            int cuzin;
+            fseek(fd, offset, SEEK_CUR); //NAO SERÁ TRES, depende do tamanho do indice, colocar o fgetc até '|'
+            char caractere = fgetc(fd);
+            while(caractere != '|'){
+                caractere = fgetc(fd);
+            }
+            fseek(fd, 1, SEEK_CUR);
+            short temp = (short) cabeca;
+            fwrite(&temp, sizeof(short), 1, fd);
+            mudou = 1;
         }
+        while(tamanho < tamanhoDoRegistro){
+            old_offset = 0; //reinicia tb ele, n sei se precisa pra quando fará outro fread nele.
+            char caractere = fgetc(fd);
+            while(caractere != '|'){
+                caractere = fgetc(fd);
+            }
+            fseek(fd, 1, SEEK_CUR);
+            short tamanho_anterior = tamanhoDoRegistro;
+            tamanhoDoRegistro = 0; //reinicia ele ali embaixo pra quando for passar um novo valor
+            posicao_anterior = ftell(fd);
+            fread(&old_offset, sizeof(short), 1, fd);
+            fseek(fd, old_offset, SEEK_SET);
+            fseek(fd, -2, SEEK_CUR);
+            fread(&tamanhoDoRegistro,sizeof(short),1,fd);  
+        }
+
+        if(mudou == 0){
+            fseek(fd, posicao_anterior, SEEK_SET);
+            fwrite(&offset_em_short, sizeof(short), 1, fd);
+            fseek(fd, offset, SEEK_SET);
+            fseek(fd, 2, SEEK_CUR); //Pula short ( NAO QUEREMOS LER TAMANHO AGR.)
+            char caracterer = fgetc(fd);
+            while(caracterer != '|'){
+                caracterer = fgetc(fd);
+            }
+            fseek(fd, 1, SEEK_CUR); 
+            fwrite(&old_offset, sizeof(short), 1, fd);
+        }
+        
     }
 }
 
