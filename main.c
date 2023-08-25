@@ -1,17 +1,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <locale.h>
+
 
 #define TRUE 1
 #define FALSE 0
 
+
 void executa_operacoes(char *argv[]); //Função responsável por ler o arquivo de operações e chamar a função correspondente
-int busca_registro(short id, int print); //Função responsável pela operação de busca de registro 
+int busca_registro(short id, int print, FILE* arq_dados); //Função responsável pela operação de busca de registro 
 void imprime_resultado(char operacao, short id, short tamanho, int offset, char conteudo[], int tamanho_char); //Função de impressão do resultado das operações
-void remove_registro(short id);
+int remove_registro(short id, FILE* arq_dados);
 void insere_led(short tamanho, int offset, FILE* fd);
+int imprime_led(FILE* arq_dados);
 
 int main(int argc, char *argv[]){
+    setlocale(LC_ALL, "Portuguese");
     if (argc == 3 && strcmp(argv[1], "-e") == 0) {
         printf("Modo de execucao de operacoes ativado ... nome do arquivo = %s\n", argv[2]);
         executa_operacoes(argv); 
@@ -20,7 +25,8 @@ int main(int argc, char *argv[]){
 
         printf("Modo de impressao da LED ativado ...\n");
         // chamada da funcao que imprime as informacoes da led
-        // imprime_led();
+        FILE* arq_dados = fopen("outros/dados.dat", "rb+");
+        imprime_led(arq_dados);
 
     } else {
         fprintf(stderr, "Argumentos incorretos!\n");
@@ -45,22 +51,25 @@ void executa_operacoes(char *argv[]){
         exit(1);
     }
 
+    FILE *arq_dados = fopen("outros/dados.dat", "rb+");
+
     while (fgets(BUFFER, sizeof(BUFFER), arq_operacoes) != NULL) {
         data[0] = '\0';
         sscanf(BUFFER, " %c %hd|%[^\n]", &operacao, &id, data);
 
         switch(operacao){
             case 'r': 
-                remove_registro(id);
+                remove_registro(id, arq_dados);
                 break;
             case 'i':
                 //insere_registro();
                 break;
             case 'b':
-                busca_registro(id,TRUE);
+                busca_registro(id,TRUE, arq_dados);
                 break;
         }          
     }
+    fclose(arq_dados);
     fclose(arq_operacoes);
 }
 void printCabecalho(FILE* fd){
@@ -69,14 +78,14 @@ void printCabecalho(FILE* fd){
     fread(&cabecalho,sizeof(int),1,fd);
     printf("CABECA: %d",cabecalho);
 }
-int busca_registro(short id, int print){
-    FILE *arq_dados = fopen("outros/dados.dat", "rb+");
+int busca_registro(short id, int print, FILE* arq_dados){
     short tamanho_reg;
     char id_verificando[5];
     short auxiliar;
     int achou = FALSE;
     char caracter;
     int byte_offset;
+    printf("procurando id: %hd\n", id);
 
     // printCabecalho(arq_dados);
 
@@ -85,12 +94,13 @@ int busca_registro(short id, int print){
         printf("Erro ao abrir o arquivo para busca");
         exit(1);
     }
-    if(ftell(arq_dados) == 0){
-        fseek(arq_dados, 4, SEEK_SET);
-    }
+    
+    fseek(arq_dados, 4, SEEK_SET);
+    
     while((achou == FALSE) && (!feof(arq_dados))){
         auxiliar = 0; //reiniciará para todo do while 
         fread(&tamanho_reg, sizeof(tamanho_reg), 1, arq_dados);
+        // printf("TAMANHO REG ATUAL: %hd", tamanho_reg);
         byte_offset += (int)tamanho_reg;
         caracter = fgetc(arq_dados);
         char conteudo[2000];
@@ -101,9 +111,12 @@ int busca_registro(short id, int print){
             caracter = fgetc(arq_dados);
         }
         id_verificando[auxiliar] = '\0'; //garantir que acaba ali, dar um fim,
+        // printf("\n%s - id que estamos verificando\n", id_verificando);
+        // printf("Auxiliar terminou em : %i\n", auxiliar);
 
         if(id == (short)atoi(id_verificando)){
             achou = TRUE;
+            printf("nao entrei aqui");
             //printf("ACHOU AQUI: %ld",ftell(arq_dados));         
             fseek(arq_dados,-1,SEEK_CUR);
             fseek(arq_dados, -auxiliar ,SEEK_CUR);
@@ -134,21 +147,27 @@ int busca_registro(short id, int print){
 
     if((achou == FALSE) || (feof(arq_dados))){
         printf("\nNao foi encontrado esse Registro com o ID - %hd\n\n", id);
+        return -1;
     }
-    fclose(arq_dados);
+
 }
 
-void remove_registro(short id){
-    FILE *arq_dados = fopen("outros/dados.dat", "rb+");
+int remove_registro(short id, FILE* arq_dados){
+
     if (arq_dados == NULL) {
         printf("Erro ao abrir o arquivo para a operação de remoção.\n");
-        return;
+        return -1;
     }
 
     char conteudo[2000];
     char caracter;
+
     
-    int byte_offset = busca_registro(id, FALSE);
+    int byte_offset = busca_registro(id, FALSE, arq_dados);
+    if(byte_offset == -1){
+        printf("Impossível remover, esse registro não foi encontrado.");
+        return -1;
+    }
     short tamano_registro;
     char tamanho_reg_char[20];
     
@@ -166,9 +185,8 @@ void remove_registro(short id){
 
     
 
-    insere_led(byte_offset,tamano_registro, arq_dados);
+    insere_led(tamano_registro,byte_offset, arq_dados);
 
-    fclose(arq_dados);
     
 }
 
@@ -192,37 +210,57 @@ void imprime_resultado(char operacao, short id, short tamanho, int offset, char 
 
 void insere_led(short tamanho, int offset, FILE* fd){ // PROBLEMA, ESSE OFFSET ESTÁ VINDO COMO SHORT, porém é um int antes
     rewind(fd);
+    printf("\nOFFSET COMO VEIO: %d\n", offset);
+    
     short offset_em_short = (short) offset;
+
+    printf("Virou short, offset ficou assim -> %hd\n", offset_em_short);
+    
     int cabeca;
     short old_offset;
+    int sair = FALSE;
     short tamanhoDoRegistro;
     int mudou = 0;
     short posicao_anterior;
     fread(&cabeca,sizeof(int),1,fd);
+    printf("Cabeca atual: %i\n", cabeca);
     if(cabeca == -1){
         rewind(fd);
-        int colocar = (int)offset;
+        int colocar = (int) offset;
         fwrite(&colocar,sizeof(int),1,fd);
+        fseek(fd, offset, SEEK_SET);
+        char caractere = fgetc(fd);
+        while(caractere != '|'){
+            caractere = fgetc(fd);
+        }
+        fseek(fd, 1, SEEK_CUR);
+        short cabeca_short = (short) cabeca;
+        printf("\nCabeca em short na primeira remocao: %hd\n", cabeca_short);
+        fwrite(&cabeca_short, sizeof(short), 1, fd);
     }else{
         fseek(fd,cabeca,SEEK_SET);
-        fseek(fd,-2,SEEK_CUR);
+        printf("POSICAO AGORA: %ld\n", ftell(fd));
         fread(&tamanhoDoRegistro,sizeof(short),1,fd);
+        printf("Tamanho do registro checando: %hd\n", tamanhoDoRegistro);
         if(tamanho > tamanhoDoRegistro){
             rewind(fd);
             int colocar = (int)offset;
-            fwrite(&offset,sizeof(int),1,fd);
-            fseek(fd, offset, SEEK_CUR); //NAO SERÁ TRES, depende do tamanho do indice, colocar o fgetc até '|'
+            fwrite(&colocar,sizeof(int),1,fd);
+            fseek(fd, offset, SEEK_SET); 
             char caractere = fgetc(fd);
             while(caractere != '|'){
                 caractere = fgetc(fd);
             }
             fseek(fd, 1, SEEK_CUR);
+            printf("Vamos escrever aqui: %ld\n", ftell(fd));
             short temp = (short) cabeca;
+            printf("Escrevendo: %hd\n", temp);
             fwrite(&temp, sizeof(short), 1, fd);
             mudou = 1;
         }
-        while(tamanho < tamanhoDoRegistro){
-            old_offset = 0; //reinicia tb ele, n sei se precisa pra quando fará outro fread nele.
+        printf("%hd  - Tamanho do nosso x Tamanho do Reg Atual %hd\n", tamanho, tamanhoDoRegistro);
+        printf("Sair = %d\n", sair);
+        while((tamanho <= tamanhoDoRegistro) && (sair == FALSE)){
             char caractere = fgetc(fd);
             while(caractere != '|'){
                 caractere = fgetc(fd);
@@ -231,25 +269,87 @@ void insere_led(short tamanho, int offset, FILE* fd){ // PROBLEMA, ESSE OFFSET E
             short tamanho_anterior = tamanhoDoRegistro;
             tamanhoDoRegistro = 0; //reinicia ele ali embaixo pra quando for passar um novo valor
             posicao_anterior = ftell(fd);
+            printf("Posicao anterior: %hd\n", posicao_anterior);
             fread(&old_offset, sizeof(short), 1, fd);
-            fseek(fd, old_offset, SEEK_SET);
-            fseek(fd, -2, SEEK_CUR);
-            fread(&tamanhoDoRegistro,sizeof(short),1,fd);  
+            printf("Old offset: %hd\n", old_offset);
+            if(old_offset == -1){
+                sair = TRUE;
+                mudou = 1;
+            }else{
+                fseek(fd, old_offset, SEEK_SET);
+                fread(&tamanhoDoRegistro,sizeof(short),1,fd);  
+                printf("Novo tamanho do registro sendo comparado: %hd\n", tamanhoDoRegistro);
+            }
         }
 
-        if(mudou == 0){
+        if((mudou == 0) || (sair)){
+            printf("\nInserindo:\n");
+            printf("Indo para a Posicao anterior: %hd\n", posicao_anterior);
             fseek(fd, posicao_anterior, SEEK_SET);
+            printf("Escrevendo esse offset: %hd\n", offset_em_short);
             fwrite(&offset_em_short, sizeof(short), 1, fd);
             fseek(fd, offset, SEEK_SET);
-            fseek(fd, 2, SEEK_CUR); //Pula short ( NAO QUEREMOS LER TAMANHO AGR.)
             char caracterer = fgetc(fd);
             while(caracterer != '|'){
                 caracterer = fgetc(fd);
             }
             fseek(fd, 1, SEEK_CUR); 
+            printf("Voltamos para esse offset nosso: %d\n", offset);
             fwrite(&old_offset, sizeof(short), 1, fd);
+            printf("Escrevendo esse offset: %hd\n", old_offset);
+
         }
+
+        // if(sair){
+        //     fseek(fd, posicao_anterior, SEEK_SET);
+        //     fwrite(&offset_em_short, sizeof(short), 1, fd);
+        // }
         
     }
 }
+
+int imprime_led(FILE* arq_dados){
+
+
+    int cabeca;
+    int quantidade_LED = 0;
+    short prox_offset;
+    short tamanho_reg;
+    rewind(arq_dados);
+    fread(&cabeca, sizeof(int), 1, arq_dados);
+    if(cabeca == -1){
+        printf("LED -> [offset: %i]\n", cabeca);
+        printf("Não há espaços disponíveis para inserção na LED\n");
+        return -1;
+    }
+    printf("LED ");  
+
+    fseek(arq_dados, cabeca, SEEK_SET);
+    quantidade_LED++;
+    fread(&tamanho_reg, sizeof(short), 1, arq_dados);
+    char caracterer = fgetc(arq_dados);
+    while(caracterer != '|'){
+        caracterer = fgetc(arq_dados);
+    }
+    fseek(arq_dados, 1, SEEK_CUR);
+    fread(&prox_offset, sizeof(short), 1, arq_dados);
+    printf("-> [offset: %i, tam: %hd]", cabeca, tamanho_reg);
+
+    while(prox_offset != -1){
+        quantidade_LED++;
+        fseek(arq_dados, prox_offset, SEEK_SET);
+        fread(&tamanho_reg, sizeof(short), 1, arq_dados);
+        char caracterer = fgetc(arq_dados);
+        while(caracterer != '|'){
+            caracterer = fgetc(arq_dados);
+        }
+        fseek(arq_dados, 1, SEEK_CUR);
+        printf("-> [offset: %hd, tam: %hd]", prox_offset, tamanho_reg);
+        fread(&prox_offset, sizeof(short), 1, arq_dados);
+    }
+
+    printf("-> [offset: -1]\n");
+    printf("Total de espacos disponiveis: %d\n", quantidade_LED);
+}
+
 
