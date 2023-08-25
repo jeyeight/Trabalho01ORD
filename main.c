@@ -6,7 +6,6 @@
 #define FALSE 0
 
 void executa_operacoes(char *argv[]); //Função responsável por ler o arquivo de operações e chamar a função correspondente
-void print_linha(char operacao, short id, char *data);
 int busca_registro(short id, int print); //Função responsável pela operação de busca de registro 
 void imprime_resultado(char operacao, short id, short tamanho, int offset, char conteudo[], int tamanho_char); //Função de impressão do resultado das operações
 void remove_registro(short id);
@@ -29,21 +28,8 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "$ %s -p\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-
     return 0;
 }
-
-//debug functions
-void print_linha(char operacao, short id, char *data) {
-    printf("Operacao: %c, Id: %hd, Data: %s\n", operacao, id, data);
-}
-
-void dd(char caracter){
-    printf("%c",caracter);
-    exit(1);
-}
-//
-
 
 void executa_operacoes(char *argv[]){
     FILE *arq_operacoes = fopen(argv[2], "rb+");
@@ -61,11 +47,10 @@ void executa_operacoes(char *argv[]){
     while (fgets(BUFFER, sizeof(BUFFER), arq_operacoes) != NULL) {
         data[0] = '\0';
         sscanf(BUFFER, " %c %hd|%[^\n]", &operacao, &id, data);
-        print_linha(operacao, id, data);
 
         switch(operacao){
             case 'r': 
-                remove_registro(id);
+                // remove_registro(id);
                 break;
             case 'i':
                 //insere_registro();
@@ -75,10 +60,14 @@ void executa_operacoes(char *argv[]){
                 break;
         }          
     }
-
     fclose(arq_operacoes);
 }
-
+void printCabecalho(FILE* fd){
+    rewind(fd);
+    int cabecalho;
+    fread(&cabecalho,sizeof(int),1,fd);
+    printf("CABECA: %d",cabecalho);
+}
 int busca_registro(short id, int print){
     FILE *arq_dados = fopen("outros/dados.dat", "rb+");
     short tamanho_reg;
@@ -87,6 +76,9 @@ int busca_registro(short id, int print){
     int achou = FALSE;
     char caracter;
     int byte_offset;
+
+    // printCabecalho(arq_dados);
+    exit(1);
 
     if (arq_dados == NULL) {
         printf("Erro ao abrir o arquivo para busca");
@@ -110,10 +102,11 @@ int busca_registro(short id, int print){
         id_verificando[auxiliar] = '\0'; //garantir que acaba ali, dar um fim,
 
         if(id == (short)atoi(id_verificando)){
-            achou = TRUE;         
+            achou = TRUE;
+            printf("ACHOU AQUI: %ld",ftell(arq_dados));         
             fseek(arq_dados,-1,SEEK_CUR);
             fseek(arq_dados, -auxiliar ,SEEK_CUR);
-            int offset = ftell(arq_dados); // o + 1 acho que n precisa, pq ele começa no 0
+            int offset = ftell(arq_dados) - 2; // o + 1 acho que n precisa, pq ele começa no 0
             fread(conteudo, sizeof(char),tamanho_reg,arq_dados);
             if(conteudo[auxiliar + 1] == '*'){
                 print = 0;
@@ -159,7 +152,6 @@ void remove_registro(short id){
     char tamanho_reg_char[20];
     
     fseek(arq_dados, byte_offset,SEEK_SET);
-    fseek(arq_dados, -2, SEEK_CUR);
     fread(&tamano_registro, sizeof(tamano_registro), 1, arq_dados);
     
     short indice; 
@@ -192,87 +184,24 @@ void imprime_resultado(char operacao, short id, short tamanho, int offset, char 
     }
 }
 
-struct ListaLED{
-    int LED[100];
-    int tamanho;
-};
-
-void inicia_LED(struct ListaLED* lista){
-    lista->tamanho = 0;
-}
-
-void insere_LED(struct ListaLED* lista, int novo_registro){
-    if (lista->tamanho < 100){
-        if(lista->tamanho == 0){
-            lista->LED[0] = novo_registro;
-            lista->tamanho++;
-        }
-        else{
-            int i = 0;
-            while(lista->LED[i] > novo_registro){
-                i++;
-            }
-            int transloca_LED = lista->tamanho;
-            while(transloca_LED >= i){
-                lista->LED[transloca_LED + 1] = lista->LED[transloca_LED];
-                transloca_LED--;
-            }
-            lista->LED[i] = novo_registro;
-            lista->tamanho++;
+void insere_led(short tamanho, short offset, FILE* fd){
+    rewind(fd);
+    int cabeca;
+    short tamanhoDoRegistro;
+    fread(&cabeca,sizeof(int),1,fd);
+    if(cabeca == -1){
+        rewind(fd);
+        int colocar = (int)offset;
+        fwrite(&colocar,sizeof(int),1,fd);
+    }else{
+        fseek(fd,cabeca,SEEK_SET);
+        fseek(fd,-2,SEEK_CUR);
+        fread(&tamanhoDoRegistro,sizeof(short),1,fd);
+        if(tamanho > tamanhoDoRegistro){
+            rewind(fd);
+            int colocar = (int)offset;
+            fwrite(&offset,sizeof(int),1,fd);
         }
     }
-    else{
-        printf("\nLista está CHEIA. Não foi possível inserir esse elemento na LED");
-    }
-
 }
 
-struct No{
-    struct No* prox;
-    int info;
-};
-
-struct No* criar_No(int info){ 
-    struct No* no = (struct No*)malloc(sizeof(struct No));
-    no->info = info;
-    no->prox = NULL;
-    return no;
-
-}
-
-// void inicia_LED(struct ListaLED* lista){
-//     lista->tamanho = 0;
-// }
-
-// void insere_LED(struct No** cabeca, int novo_registro){
-    
-//     struct No* atual = cabeca;
-// }
-
-int lista_vazia(struct No* cabeca) {
-    return cabeca == NULL;
-}
-
-//     if(arq == NULL){
-//         printf("Arquivo inexistente");
-//         exit(1);
-//     }
-//     while ((character = fgetc(arq)) != EOF && character != '\n') {
-//             BUFFER[index] = character;
-//             index++;
-//     }
-//     printf("A linha lida do arquivo Ã©: %s\n", BUFFER);
-//     }
-
-//     fclose(arq);
-// }
-
-// void ImprimeResultado(char operacao, int id, int bytes, int offset){
-//     if(strcmp(operacao,"r") == 1){
-//             printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset,&id);
-//     }else if(strcmp(operacao,"i") == 1){
-//             printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset,&id);
-//     }else{
-//             printf("Remocao do registro de chave %d Registro removido! (%d bytes) Local: offset = %d bytes (%p)", id, bytes, offset, &id);
-//     }
-// }
